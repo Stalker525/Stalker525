@@ -1,0 +1,51 @@
+name: Deploy OSINT Framework to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages-osint
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout upstream OSINT Framework
+        uses: actions/checkout@v4
+        with:
+          repository: lockfale/OSINT-Framework
+          ref: master
+          path: upstream
+      - name: Install Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci --prefix upstream
+      - name: Build published website
+        run: |
+          mkdir -p _site
+          cp -a upstream/public/. _site/
+          touch _site/.nojekyll
+          test -s _site/index.html
+          test -s _site/js/d3.min.js
+          test -s _site/arf.json
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy
+        uses: actions/deploy-pages@v4
+        id: deployment
