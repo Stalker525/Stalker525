@@ -40,8 +40,10 @@ jobs:
           test -s _site/index.html
           test -s _site/js/d3.min.js
           test -s _site/arf.json
-      - name: Configure Pages
+      - name: Configure Pages (enable for first run)
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
