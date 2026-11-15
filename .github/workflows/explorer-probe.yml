@@ -1,0 +1,32 @@
+name: Test Ethereum explorer data sources
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/explorer-probe.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check public explorer endpoints
+        run: |
+          python - <<'PY'
+          import urllib.request,urllib.parse
+          addr='0x54e23bcc99e5a5818b382ac5bddda496e199aa6b'
+          probes={
+          'etherscan_html':'https://etherscan.io/txs?a='+addr,
+          'etherscan_html_page2':'https://etherscan.io/txs?a='+addr+'&p=2',
+          'blockscout_legacy':'https://eth.blockscout.com/api?module=account&action=txlist&address='+addr+'&startblock=0&endblock=99999999&page=1&offset=10&sort=desc',
+          'blockscout_v2':'https://eth.blockscout.com/api/v2/addresses/'+addr+'/transactions',
+          'ethplorer':'https://api.ethplorer.io/getAddressTransactions/'+addr+'?apiKey=freekey&limit=10',
+          'blockchair':'https://api.blockchair.com/ethereum/dashboards/address/'+addr,
+          'etherscan_v1':'https://api.etherscan.io/api?module=account&action=txlist&address='+addr+'&apikey=YourApiKeyToken',
+          }
+          for name,url in probes.items():
+            try:
+              r=urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0','Accept':'text/html,application/json'}),timeout=10)
+              b=r.read(1000)
+              print('PROBE',name,'status',r.status,'content',b[:350].decode('utf-8',errors='replace').replace('\n',' '))
+            except Exception as e:print('PROBE',name,'ERROR',type(e).__name__,str(e)[:150])
+          PY
