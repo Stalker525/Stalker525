@@ -1,0 +1,36 @@
+name: Verify secondary wallet transfer address
+on:
+  push:
+    paths: [.github/workflows/check-secondary-transfer.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect June 2022 transfers by Blockscout
+        run: |
+          python - <<'PY'
+          import urllib.parse,urllib.request,json,datetime,time
+          addr="0xcefd842d2cb5a8d89c51b6ad0e5892a873ecb685"
+          base="https://eth.blockscout.com/api"
+          found=0
+          for page in range(1,16):
+            q=dict(module="account",action="txlist",address=addr,startblock="14950000",endblock="15000000",page=str(page),offset="100",sort="asc")
+            req=urllib.request.Request(base+"?"+urllib.parse.urlencode(q),headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
+            try:
+              with urllib.request.urlopen(req,timeout=30) as f: resp=json.load(f)
+            except Exception as e:print("ERROR",repr(e));break
+            rows=resp.get("result",[])
+            if not isinstance(rows,list): print("ERRORVALUE",str(rows)[:200]);break
+            print("PAGE",page,len(rows))
+            for t in rows:
+              value=int(t.get("value",0))
+              if t.get("from","").lower()==addr.lower() and (value >= 449*10**18 or abs(value-450*10**18)<10**16):
+                print("POTENTIAL",json.dumps({x:t.get(x) for x in ("timeStamp","value","from","to","hash","blockNumber")}))
+                found+=1
+            if len(rows)<100:break
+            time.sleep(1)
+          print("COUNT",found)
+          PY
