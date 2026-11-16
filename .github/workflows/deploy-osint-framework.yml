@@ -1,51 +1,51 @@
-name: Deploy OSINT Framework to GitHub Pages
+name: Publish OSINT Framework on GitHub Pages
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-osint-framework.yml'
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: github-pages-osint
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  build-and-deploy:
+  publish:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout upstream OSINT Framework
+      - name: Checkout your repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Checkout official OSINT Framework
         uses: actions/checkout@v4
         with:
           repository: lockfale/OSINT-Framework
           ref: master
-          path: upstream
-      - name: Install Node 22
+          path: osint-upstream
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install dependencies
-        run: npm ci --prefix upstream
-      - name: Build published website
+      - name: Prepare OSINT Framework static files
         run: |
-          mkdir -p _site
-          cp -a upstream/public/. _site/
-          touch _site/.nojekyll
-          test -s _site/index.html
-          test -s _site/js/d3.min.js
-          test -s _site/arf.json
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - name: Deploy
-        uses: actions/deploy-pages@v4
-        id: deployment
+          npm ci --prefix osint-upstream
+          cp -a osint-upstream/public/. .
+          cp osint-upstream/LICENSE ./OSINT-Framework-LICENSE
+          touch .nojekyll
+          test -s index.html
+          test -s js/arf.js
+          test -s js/d3.min.js
+          test -s css/arf.css
+          test -s arf.json
+      - name: Commit static website to main branch for branch-based GitHub Pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f index.html arf.json css js .nojekyll OSINT-Framework-LICENSE
+          if git diff --cached --quiet; then
+            echo "Already up to date."
+          else
+            git commit -m "Publish OSINT Framework website to repository root"
+            git push origin HEAD:main
+          fi
